@@ -18,14 +18,14 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::process::Child;
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tauri::{Manager, RunEvent};
 
 pub struct St {
     pub cfg: Mutex<settings::Settings>,
     pub db: Mutex<rusqlite::Connection>,
     pub child: Mutex<Option<Child>>,
-    pub tokens: Mutex<HashMap<String, (String, Instant)>>,
+    pub tokens: Mutex<HashMap<String, (String, i64)>>,
     pub syncing: Mutex<HashSet<String>>,
     pub classifying: Mutex<bool>,
     pub dir: PathBuf,

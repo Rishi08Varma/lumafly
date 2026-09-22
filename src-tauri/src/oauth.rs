@@ -1,11 +1,12 @@
-use crate::{err, settings, St};
+use crate::{err, now, settings, St};
+use std::future::Future;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD as B64;
 use base64::Engine;
 use rand::RngCore;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -138,7 +139,7 @@ pub async fn token(app: &AppHandle, email: &str) -> Result<String, String> {
     let st = app.state::<St>();
     let cached = st.tokens.lock().unwrap().get(email).cloned();
     if let Some((t, exp)) = cached {
-        if exp > Instant::now() + Duration::from_secs(60) {
+        if exp > now() + 300 {
             return Ok(t);
         }
     }
@@ -165,7 +166,7 @@ pub async fn token(app: &AppHandle, email: &str) -> Result<String, String> {
         .await
         .map_err(err)?;
     if let Some(a) = r["access_token"].as_str() {
-        let exp = Instant::now() + Duration::from_secs(r["expires_in"].as_u64().unwrap_or(3600));
+        let exp = now() + r["expires_in"].as_i64().unwrap_or(3600);
         st.tokens.lock().unwrap().insert(email.into(), (a.into(), exp));
         return Ok(a.into());
     }
@@ -175,6 +176,26 @@ pub async fn token(app: &AppHandle, email: &str) -> Result<String, String> {
         return Err("Google session expired (Testing apps expire after 7 days); re-authenticate".into());
     }
     Err(format!("token refresh failed: {e}"))
+}
+
+pub fn invalidate(app: &AppHandle, email: &str) {
+    app.state::<St>().tokens.lock().unwrap().remove(email);
+}
+
+pub async fn with_token<T, F, Fut>(app: &AppHandle, email: &str, f: F) -> Result<T, String>
+where
+    F: Fn(String) -> Fut,
+    Fut: Future<Output = Result<T, String>>,
+{
+    let tok = token(app, email).await?;
+    match f(tok).await {
+        Err(e) if e.starts_with("gmail 401") => {
+            invalidate(app, email);
+            let tok = token(app, email).await?;
+            f(tok).await
+        }
+        r => r,
+    }
 }
 
 pub async fn revoke(rt: &str) {

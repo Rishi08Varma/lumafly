@@ -1,7 +1,6 @@
-use crate::{err, oauth, settings, sync, St};
+use crate::{err, now, oauth, settings, sync, St};
 use rusqlite::Connection;
 use serde::Serialize;
-use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager, State};
 
 #[derive(Serialize, Clone)]
@@ -54,7 +53,7 @@ async fn link(app: &AppHandle, hint: Option<&str>) -> Result<Acct, String> {
     st.tokens
         .lock()
         .unwrap()
-        .insert(email.clone(), (access, Instant::now() + Duration::from_secs(3500)));
+        .insert(email.clone(), (access, now() + 3500));
     let a = {
         let db = st.db.lock().unwrap();
         db.execute(

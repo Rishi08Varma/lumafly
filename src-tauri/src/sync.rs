@@ -19,7 +19,11 @@ pub async fn sync(app: &AppHandle, email: &str, full: bool) -> Result<usize, Str
         return Ok(0);
     }
     let _ = app.emit("sync_start", email);
-    let r = run(app, email, full).await;
+    let mut r = run(app, email, full).await;
+    if matches!(&r, Err(e) if e.starts_with("gmail 401")) {
+        oauth::invalidate(app, email);
+        r = run(app, email, full).await;
+    }
     st.syncing.lock().unwrap().remove(email);
     match &r {
         Ok(n) => {

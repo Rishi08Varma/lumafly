@@ -101,12 +101,12 @@ pub async fn execute(
 ) -> Result<i64, String> {
     let st = app.state::<St>();
     let (add, rm) = ops(action, cat)?;
-    let r = async {
-        let tok = oauth::token(app, email).await?;
-        let a = resolve(app, email, &tok, &add).await?;
-        let d = resolve(app, email, &tok, &rm).await?;
+    let (add_r, rm_r) = (&add, &rm);
+    let r = oauth::with_token(app, email, |tok| async move {
+        let a = resolve(app, email, &tok, add_r).await?;
+        let d = resolve(app, email, &tok, rm_r).await?;
         gmail::modify(&tok, msg_id, &a, &d).await
-    }
+    })
     .await;
     let detail = json!({"add": add, "remove": rm, "category": cat, "source": source}).to_string();
     let result = match &r {
@@ -212,10 +212,14 @@ pub async fn undo_action(app: AppHandle, id: i64) -> Result<(), String> {
             .filter_map(|x| x.as_str().map(String::from))
             .collect()
     };
-    let tok = oauth::token(&app, &email).await?;
-    let a = resolve(&app, &email, &tok, &names("remove")).await?;
-    let r = resolve(&app, &email, &tok, &names("add")).await?;
-    let labels = gmail::modify(&tok, &msg_id, &a, &r).await?;
+    let (add, rm) = (names("remove"), names("add"));
+    let (app_r, email_r, msg_r, add_r, rm_r) = (&app, &email, &msg_id, &add, &rm);
+    let labels = oauth::with_token(&app, &email, |tok| async move {
+        let a = resolve(app_r, email_r, &tok, add_r).await?;
+        let r = resolve(app_r, email_r, &tok, rm_r).await?;
+        gmail::modify(&tok, msg_r, &a, &r).await
+    })
+    .await?;
     {
         let db = st.db.lock().unwrap();
         db.execute("UPDATE actions SET undone=1 WHERE id=?1", [id]).map_err(err)?;

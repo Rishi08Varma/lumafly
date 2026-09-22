@@ -56,8 +56,9 @@ async fn mailto(app: &AppHandle, email: &str, m: &str) -> Result<(), String> {
     let raw = format!(
         "From: {email}\r\nTo: {to}\r\nSubject: {subj}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{body}\r\n"
     );
-    let tok = oauth::token(app, email).await?;
-    gmail::send(&tok, &URL_SAFE_NO_PAD.encode(raw)).await
+    let raw = URL_SAFE_NO_PAD.encode(raw);
+    let raw = &raw;
+    oauth::with_token(app, email, |tok| async move { gmail::send(&tok, raw).await }).await
 }
 
 fn pick_link(links: &[(String, String)]) -> Option<String> {
@@ -114,8 +115,12 @@ pub async fn run(app: &AppHandle, m: &messages::Msg) -> Result<&'static str, Str
     }
     let mut link = https.first().cloned();
     if link.is_none() {
-        let tok = oauth::token(app, &m.account).await?;
-        let v = gmail::get(&tok, &format!("messages/{}", m.id), &[("format", "full")]).await?;
+        let path = format!("messages/{}", m.id);
+        let path = &path;
+        let v = oauth::with_token(app, &m.account, |tok| async move {
+            gmail::get(&tok, path, &[("format", "full")]).await
+        })
+        .await?;
         link = pick_link(&text::links(&gmail::html_of(&v)));
     }
     match link {

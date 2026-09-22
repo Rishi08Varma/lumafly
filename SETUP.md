@@ -99,9 +99,9 @@ npm run tauri build
 
 Outputs land in `src-tauri/target/release/bundle/`:
 
-- macOS: `dmg/Lumafly_0.1.0_aarch64.dmg` (or `_x64` on Intel) and `macos/Lumafly.app`
-- Windows: `msi/Lumafly_0.1.0_x64_en-US.msi`
-- Linux: `appimage/Lumafly_0.1.0_amd64.AppImage` and `deb/Lumafly_0.1.0_amd64.deb`
+- macOS: `dmg/Lumafly_0.1.1_aarch64.dmg` (or `_x64` on Intel) and `macos/Lumafly.app`
+- Windows: `msi/Lumafly_0.1.1_x64_en-US.msi`
+- Linux: `appimage/Lumafly_0.1.1_amd64.AppImage` and `deb/Lumafly_0.1.1_amd64.deb`
 
 To build only one format, pass `--bundles`, for example `npm run tauri build -- --bundles msi`.
 
@@ -112,7 +112,7 @@ Linux builds additionally need `libdbus-1-dev` (for the keyring) and `patchelf` 
 Push the repo to GitHub, then tag a version:
 
 ```
-git tag v0.1.0 && git push origin v0.1.0
+git tag v0.1.1 && git push origin v0.1.1
 ```
 
 The workflow builds macOS (Apple Silicon and Intel), Windows, and Linux in parallel and attaches the installers to a draft release. Open the release on GitHub, check the files, and click Publish. You can also run it by hand from the Actions tab with "Run workflow".
@@ -129,7 +129,7 @@ Nothing is code-signed. Each OS will warn once:
 
   An app built locally on the same Mac does not need this.
 - **Windows**: SmartScreen says "Windows protected your PC". Click More info, then Run anyway.
-- **Linux**: mark the AppImage executable (`chmod +x`) or install the .deb with `sudo apt install ./Lumafly_0.1.0_amd64.deb`.
+- **Linux**: mark the AppImage executable (`chmod +x`) or install the .deb with `sudo apt install ./Lumafly_0.1.1_amd64.deb`.
 
 Signing certificates (Apple Developer, Windows EV) would remove these warnings but cost money and are not needed for personal use.
 
