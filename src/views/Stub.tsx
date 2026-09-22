@@ -1,4 +1,4 @@
-const when: Record<string, string> = { Inbox: "milestone 3", Review: "milestone 4", Digest: "milestone 6" };
+const when: Record<string, string> = { Digest: "milestone 6" };
 
 export default function Stub({ name }: { name: string }) {
   return (

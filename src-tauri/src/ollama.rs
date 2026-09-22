@@ -88,7 +88,7 @@ pub async fn chat(url: &str, model: &str, sys: &str, user: &str, schema: Value) 
         "think": false,
         "keep_alive": "5m",
         "format": schema,
-        "options": {"temperature": 0.1},
+        "options": {"temperature": 0.1, "num_ctx": 8192},
         "messages": [
             {"role": "system", "content": sys},
             {"role": "user", "content": user}

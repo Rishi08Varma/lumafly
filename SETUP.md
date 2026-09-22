@@ -20,6 +20,7 @@ You need your own OAuth client. It takes about ten minutes.
    - Name `Lumafly desktop`. **Create**.
    - Copy the **Client ID** and **Client secret**.
 6. In Lumafly, open **Settings**, paste the Client ID and Client secret, **Save**. The secret is stored in your OS keychain, not on disk.
+7. Click **Add Gmail account**. Your browser opens Google's sign-in. Pick one of the test-user addresses, accept the two Gmail permissions (Google shows an "unverified app" warning for Testing apps; click **Continue**), and return to Lumafly. Repeat for each account. The first sync fetches the last 30 days of each inbox and takes a minute or two per account.
 
 ### Why Testing status matters
 

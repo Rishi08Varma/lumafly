@@ -50,6 +50,12 @@ pub fn open(p: &Path) -> rusqlite::Result<Connection> {
            undone INTEGER DEFAULT 0,
            created INTEGER
          );
+         CREATE TABLE IF NOT EXISTS labels(
+           account TEXT,
+           name TEXT,
+           id TEXT,
+           PRIMARY KEY(account, name)
+         );
          CREATE TABLE IF NOT EXISTS approvals(
            account TEXT,
            category TEXT,
@@ -57,5 +63,6 @@ pub fn open(p: &Path) -> rusqlite::Result<Connection> {
            PRIMARY KEY(account, category)
          );",
     )?;
+    let _ = c.execute_batch("ALTER TABLE messages ADD COLUMN body TEXT");
     Ok(c)
 }

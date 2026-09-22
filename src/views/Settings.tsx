@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { CATS, ensureOllama, getSettings, hasClientSecret, Probe, saveSettings, setClientSecret, Settings as S, testOllama } from "../api";
+import { Acct, CATS, classifyNow, ensureOllama, getSettings, hasClientSecret, listAccounts, Probe, saveSettings, setClientSecret, Settings as S, testOllama } from "../api";
+import Accounts from "./Accounts";
 
 export default function Settings() {
   const [s, setS] = useState<S | null>(null);
@@ -8,10 +9,12 @@ export default function Settings() {
   const [probe, setProbe] = useState<Probe | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [accts, setAccts] = useState<Acct[]>([]);
 
   useEffect(() => {
     getSettings().then(setS);
     hasClientSecret().then(setHasSecret);
+    listAccounts().then(setAccts).catch(() => {});
   }, []);
 
   if (!s) return null;
@@ -28,7 +31,7 @@ export default function Settings() {
         setSecret("");
         setHasSecret(true);
       }
-      ensureOllama().catch(() => {});
+      ensureOllama().then(() => classifyNow()).catch(() => {});
       setMsg("Saved.");
     } catch (e) {
       setMsg(String(e));
@@ -49,7 +52,6 @@ export default function Settings() {
   };
 
   const local = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(s.ollama_url);
-  const accts = Object.keys(s.auto);
 
   return (
     <div className="page">
@@ -68,10 +70,7 @@ export default function Settings() {
         </label>
       </section>
 
-      <section>
-        <h2>Accounts</h2>
-        <p className="hint">Account linking arrives in milestone 2.</p>
-      </section>
+      <Accounts ready={!!s.client_id && hasSecret} />
 
       <section>
         <h2>Ollama</h2>
@@ -125,12 +124,12 @@ export default function Settings() {
         <p className="hint">Per account, per category. Unlocks after 20 approved proposals in that category.</p>
         {accts.length === 0 && <p className="hint">No accounts yet.</p>}
         {accts.map((a) => (
-          <div key={a} className="card">
-            <div>{a}</div>
+          <div key={a.email} className="card">
+            <div>{a.email}</div>
             <div className="chips">
               {CATS.map((c) => (
                 <label key={c} className="row">
-                  <input type="checkbox" checked={s.auto[a]?.includes(c) ?? false} disabled />
+                  <input type="checkbox" checked={s.auto[a.email]?.includes(c) ?? false} disabled />
                   {c}
                 </label>
               ))}
