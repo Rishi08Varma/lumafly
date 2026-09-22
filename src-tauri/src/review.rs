@@ -1,4 +1,5 @@
 use crate::{actions, err, now, St};
+use std::collections::HashMap;
 use rusqlite::params;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -187,38 +188,47 @@ fn set_status(st: &St, id: i64, status: &str) {
         .execute("UPDATE proposals SET status=?1 WHERE id=?2", params![status, id]);
 }
 
-async fn approve_one(app: &AppHandle, id: i64) -> Result<(), String> {
-    let st = app.state::<St>();
-    let (msg_id, email, action, cat): (String, String, String, String) = st
-        .db
-        .lock()
-        .unwrap()
-        .query_row(
-            "SELECT msg_id,account,action,category FROM proposals WHERE id=?1 AND status='pending'",
-            [id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
-        )
-        .map_err(|_| "proposal not pending".to_string())?;
-    let r = actions::execute(app, &email, &msg_id, &action, Some(&cat), "review").await;
-    match &r {
-        Ok(_) => {
-            set_status(&st, id, "approved");
-            let _ = st.db.lock().unwrap().execute(
-                "INSERT INTO approvals(account,category,n) VALUES(?1,?2,1)
-                 ON CONFLICT(account,category) DO UPDATE SET n=n+1",
-                [&email, &cat],
-            );
-        }
-        Err(_) => set_status(&st, id, "failed"),
-    }
-    r.map(|_| ())
-}
-
 #[tauri::command]
 pub async fn approve(app: AppHandle, ids: Vec<i64>) -> Result<Vec<String>, String> {
+    let st = app.state::<St>();
+    let mut groups: HashMap<(String, String, String), Vec<(i64, String)>> = HashMap::new();
+    {
+        let db = st.db.lock().unwrap();
+        for id in ids {
+            let r: Result<(String, String, String, String), _> = db.query_row(
+                "SELECT msg_id,account,action,category FROM proposals WHERE id=?1 AND status='pending'",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            );
+            if let Ok((msg_id, email, action, cat)) = r {
+                groups.entry((email, action, cat)).or_default().push((id, msg_id));
+            }
+        }
+    }
     let mut errs = vec![];
-    for id in ids {
-        if let Err(e) = approve_one(&app, id).await {
+    for ((email, action, cat), items) in groups {
+        let msg_ids: Vec<String> = items.iter().map(|x| x.1.clone()).collect();
+        let (ok, e) = match actions::execute_many(&app, &email, &msg_ids, &action, Some(&cat), "review").await {
+            Ok(ok) => (ok, None),
+            Err(e) => (vec![], Some(e)),
+        };
+        let mut n = 0;
+        for (pid, mid) in &items {
+            if ok.contains(mid) {
+                set_status(&st, *pid, "approved");
+                n += 1;
+            } else {
+                set_status(&st, *pid, "failed");
+            }
+        }
+        if n > 0 {
+            let _ = st.db.lock().unwrap().execute(
+                "INSERT INTO approvals(account,category,n) VALUES(?1,?2,?3)
+                 ON CONFLICT(account,category) DO UPDATE SET n=n+excluded.n",
+                params![email, cat, n],
+            );
+        }
+        if let Some(e) = e {
             errs.push(e);
         }
     }

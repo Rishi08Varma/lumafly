@@ -237,3 +237,13 @@ pub fn html_of(v: &Value) -> String {
     walk(&v["payload"], &mut txt, &mut html);
     html
 }
+
+pub async fn batch_modify(tok: &str, ids: &[String], add: &[String], remove: &[String]) -> Result<(), String> {
+    post(
+        tok,
+        "messages/batchModify",
+        &serde_json::json!({"ids": ids, "addLabelIds": add, "removeLabelIds": remove}),
+    )
+    .await
+    .map(|_| ())
+}

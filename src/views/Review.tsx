@@ -15,7 +15,12 @@ export default function Review() {
 
   useEffect(() => { load().catch(() => {}); }, [load]);
   useEffect(() => {
-    const u = [listen("proposals_changed", load), listen("actions_changed", load), listen("sync_done", load)];
+    const u = [
+      listen("proposals_changed", load),
+      listen("actions_changed", load),
+      listen("sync_done", load),
+      listen<{ email: string; done: number; total: number }>("approve_progress", (e) => setMsg(`${short(e.payload.email)}: ${e.payload.done}/${e.payload.total} done`)),
+    ];
     return () => { u.forEach((p) => p.then((f) => f())); };
   }, [load]);
 
@@ -27,7 +32,7 @@ export default function Review() {
     setMsg("");
     try {
       const errs = await approve(ids);
-      if (errs.length) setMsg(errs[0]);
+      setMsg(errs.length ? errs[0] : "");
     } catch (e) { setMsg(String(e)); }
     mark(ids, false);
   };

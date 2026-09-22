@@ -44,6 +44,12 @@ pub async fn sync(app: &AppHandle, email: &str, full: bool) -> Result<usize, Str
 async fn run(app: &AppHandle, email: &str, full: bool) -> Result<usize, String> {
     let st = app.state::<St>();
     let tok = oauth::token(app, email).await?;
+    if let Some(t) = gmail::get(&tok, "labels/INBOX", &[]).await?["messagesTotal"].as_i64() {
+        let _ = st.db.lock().unwrap().execute(
+            "UPDATE accounts SET inbox_total=?1 WHERE email=?2",
+            rusqlite::params![t, email],
+        );
+    }
     let hid: Option<String> = st
         .db
         .lock()

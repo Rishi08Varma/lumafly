@@ -18,7 +18,7 @@ export default function Inbox() {
 
   const load = useCallback(async () => {
     setAccts(await listAccounts());
-    setMsgs(await listMessages(acct, cat));
+    setMsgs(await listMessages(acct, cat, 500));
     setPending(await classifyPending());
   }, [acct, cat]);
 

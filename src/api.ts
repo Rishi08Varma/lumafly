@@ -28,7 +28,7 @@ export const hasClientSecret = () => invoke<boolean>("has_client_secret");
 export const testOllama = (url: string, model: string) => invoke<Probe>("test_ollama", { url, model });
 export const ensureOllama = () => invoke<boolean>("ensure_ollama");
 
-export type Acct = { email: string; last_sync: number | null; needs_auth: boolean; count: number };
+export type Acct = { email: string; last_sync: number | null; needs_auth: boolean; count: number; inbox_total: number | null };
 
 export type Msg = {
   id: string;

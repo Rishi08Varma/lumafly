@@ -31,6 +31,7 @@ export default function Accounts({ ready }: { ready: boolean }) {
     <section>
       <h2>Accounts</h2>
       {accts.length === 0 && <p className="hint">No Gmail accounts linked yet.</p>}
+      {accts.length > 0 && <p className="hint">Sync fetches inbox mail from the sync window below. Widen the window, Save, then Resync to pull older mail.</p>}
       {accts.map((a) => (
         <div key={a.email} className={a.needs_auth ? "card err acct" : "card acct"}>
           <div className="grow">
@@ -38,7 +39,7 @@ export default function Accounts({ ready }: { ready: boolean }) {
             <div className="hint">
               {a.needs_auth
                 ? "Sign-in expired. Re-authenticate to resume syncing."
-                : `${a.count} in inbox${a.last_sync ? ` · synced ${fmtDate(a.last_sync)}` : " · not synced yet"}`}
+                : `${a.count} synced${a.inbox_total != null ? ` of ${a.inbox_total} in Gmail inbox` : ""}${a.last_sync ? ` · synced ${fmtDate(a.last_sync)}` : " · not synced yet"}`}
             </div>
           </div>
           {a.needs_auth ? (
@@ -46,7 +47,12 @@ export default function Accounts({ ready }: { ready: boolean }) {
               {busy === a.email ? "Waiting for browser…" : "Re-authenticate"}
             </button>
           ) : (
-            <button disabled={!!busy} onClick={() => run("sync" + a.email, () => syncNow(a.email))}>Sync</button>
+            <>
+              <button disabled={!!busy} onClick={() => run("sync" + a.email, () => syncNow(a.email))}>Sync</button>
+              <button disabled={!!busy} title="Fetch everything in the sync window again" onClick={() => run("full" + a.email, () => syncNow(a.email, true))}>
+                {busy === "full" + a.email ? "Fetching…" : "Resync"}
+              </button>
+            </>
           )}
           <button
             disabled={!!busy}

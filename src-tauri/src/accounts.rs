@@ -9,13 +9,14 @@ pub struct Acct {
     pub last_sync: Option<i64>,
     pub needs_auth: bool,
     pub count: i64,
+    pub inbox_total: Option<i64>,
 }
 
 pub fn list(db: &Connection) -> Result<Vec<Acct>, String> {
     let mut q = db
         .prepare(
             "SELECT a.email, a.last_sync, a.needs_auth,
-              (SELECT COUNT(*) FROM messages m WHERE m.account=a.email AND m.state='inbox')
+              (SELECT COUNT(*) FROM messages m WHERE m.account=a.email AND m.state='inbox'), a.inbox_total
              FROM accounts a ORDER BY a.email",
         )
         .map_err(err)?;
@@ -26,6 +27,7 @@ pub fn list(db: &Connection) -> Result<Vec<Acct>, String> {
                 last_sync: r.get(1)?,
                 needs_auth: r.get::<_, Option<i32>>(2)?.unwrap_or(0) != 0,
                 count: r.get(3)?,
+                inbox_total: r.get(4)?,
             })
         })
         .map_err(err)?;

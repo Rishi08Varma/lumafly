@@ -70,5 +70,6 @@ pub fn open(p: &Path) -> rusqlite::Result<Connection> {
          );",
     )?;
     let _ = c.execute_batch("ALTER TABLE messages ADD COLUMN body TEXT");
+    let _ = c.execute_batch("ALTER TABLE accounts ADD COLUMN inbox_total INTEGER");
     Ok(c)
 }

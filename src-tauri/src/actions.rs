@@ -224,9 +224,14 @@ pub async fn undo_action(app: AppHandle, id: i64) -> Result<(), String> {
         let db = st.db.lock().unwrap();
         db.execute("UPDATE actions SET undone=1 WHERE id=?1", [id]).map_err(err)?;
         let _ = messages::set_labels(&db, &msg_id, &labels);
+        let _ = db.execute(
+            "UPDATE proposals SET status='pending' WHERE msg_id=?1 AND status IN ('approved','auto')",
+            [&msg_id],
+        );
     }
     let _ = app.emit("message_changed", &msg_id);
     let _ = app.emit("actions_changed", ());
+    let _ = app.emit("proposals_changed", ());
     Ok(())
 }
 
@@ -243,4 +248,58 @@ pub async fn act(app: AppHandle, id: String, action: String) -> Result<i64, Stri
     let r = execute(&app, &email, &id, &action, cat.as_deref(), "manual").await;
     let _ = app.emit("actions_changed", ());
     r
+}
+
+pub async fn execute_many(
+    app: &AppHandle,
+    email: &str,
+    ids: &[String],
+    action: &str,
+    cat: Option<&str>,
+    source: &str,
+) -> Result<Vec<String>, String> {
+    let st = app.state::<St>();
+    let (add, rm) = ops(action, cat)?;
+    let (add_r, rm_r) = (&add, &rm);
+    let (a, d) = oauth::with_token(app, email, |tok| async move {
+        Ok((resolve(app, email, &tok, add_r).await?, resolve(app, email, &tok, rm_r).await?))
+    })
+    .await?;
+    let (a_r, d_r) = (&a, &d);
+    let detail = json!({"add": add, "remove": rm, "category": cat, "source": source}).to_string();
+    let mut done = vec![];
+    for chunk in ids.chunks(500) {
+        let r = oauth::with_token(app, email, |tok| async move { gmail::batch_modify(&tok, chunk, a_r, d_r).await }).await;
+        let result = match &r {
+            Ok(_) => "ok".to_string(),
+            Err(e) => format!("error: {e}"),
+        };
+        {
+            let db = st.db.lock().unwrap();
+            for id in chunk {
+                let _ = db.execute(
+                    "INSERT INTO actions(msg_id,account,action,detail,result,created) VALUES(?1,?2,?3,?4,?5,?6)",
+                    params![id, email, action, detail, result, now()],
+                );
+                if r.is_ok() {
+                    let old: String = db
+                        .query_row("SELECT COALESCE(labels,'') FROM messages WHERE id=?1", [id], |r| r.get(0))
+                        .unwrap_or_default();
+                    let mut l: Vec<String> = old.split(',').filter(|s| !s.is_empty()).map(String::from).collect();
+                    l.retain(|x| !d.contains(x));
+                    for x in &a {
+                        if !l.contains(x) {
+                            l.push(x.clone());
+                        }
+                    }
+                    let _ = messages::set_labels(&db, id, &l);
+                    done.push(id.clone());
+                }
+            }
+        }
+        let _ = app.emit("message_changed", "*");
+        let _ = app.emit("approve_progress", json!({"email": email, "done": done.len(), "total": ids.len()}));
+        r?;
+    }
+    Ok(done)
 }
