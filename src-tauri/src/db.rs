@@ -56,6 +56,12 @@ pub fn open(p: &Path) -> rusqlite::Result<Connection> {
            id TEXT,
            PRIMARY KEY(account, name)
          );
+         CREATE TABLE IF NOT EXISTS digests(
+           id INTEGER PRIMARY KEY,
+           created INTEGER,
+           hours INTEGER,
+           json TEXT
+         );
          CREATE TABLE IF NOT EXISTS approvals(
            account TEXT,
            category TEXT,

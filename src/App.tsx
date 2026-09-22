@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 import { pendingCount } from "./api";
 import Settings from "./views/Settings";
 import Inbox from "./views/Inbox";
 import Review from "./views/Review";
-import Stub from "./views/Stub";
+import Digest from "./views/Digest";
 
 const tabs = ["Inbox", "Review", "Digest", "Settings"] as const;
 type Tab = (typeof tabs)[number];
@@ -15,6 +16,7 @@ export default function App() {
   useEffect(() => {
     const load = () => pendingCount().then(setN).catch(() => {});
     load();
+    isPermissionGranted().then((ok) => { if (!ok) requestPermission().catch(() => {}); }).catch(() => {});
     const u = [listen("proposals_changed", load), listen("message_changed", load), listen("sync_done", load)];
     return () => { u.forEach((p) => p.then((f) => f())); };
   }, []);
@@ -30,7 +32,7 @@ export default function App() {
         ))}
       </nav>
       <main className="main">
-        {tab === "Settings" ? <Settings /> : tab === "Inbox" ? <Inbox /> : tab === "Review" ? <Review /> : <Stub name={tab} />}
+        {tab === "Settings" ? <Settings /> : tab === "Inbox" ? <Inbox /> : tab === "Review" ? <Review /> : <Digest />}
       </main>
     </div>
   );

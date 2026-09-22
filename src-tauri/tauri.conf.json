@@ -32,6 +32,17 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "shortDescription": "Local-LLM Gmail triage",
+    "longDescription": "Manages personal Gmail accounts with a locally hosted LLM. Classifies, summarizes, proposes actions for review, and unsubscribes. Nothing leaves your machine except Gmail API calls.",
+    "category": "Productivity",
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "windows": {
+      "wix": {
+        "language": "en-US"
+      }
+    }
   }
 }

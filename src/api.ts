@@ -116,3 +116,19 @@ export const act = (id: string, action: "archive" | "trash" | "spam" | "label") 
 export const unsubscribe = (id: string) => invoke<string>("unsubscribe", { id });
 export const canUnsub = (m: Pick<Msg, "category" | "list_unsub">) =>
   m.category !== "spam" && (!!m.list_unsub || m.category === "newsletter" || m.category === "promotion");
+
+export type Digest = {
+  created: number;
+  hours: number;
+  total: number;
+  counts: { category: string; account: string; n: number }[];
+  overview: string;
+  action_items: { title: string; detail: string }[];
+  notable: string[];
+};
+export type Approved = { account: string; category: string; n: number };
+
+export const makeDigest = (hours: number) => invoke<Digest>("make_digest", { hours });
+export const lastDigest = () => invoke<Digest | null>("last_digest");
+export const approvalCounts = () => invoke<Approved[]>("approval_counts");
+export const UNLOCK = 20;

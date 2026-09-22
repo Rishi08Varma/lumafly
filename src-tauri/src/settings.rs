@@ -67,7 +67,11 @@ pub fn get_settings(st: State<'_, St>) -> Settings {
 }
 
 #[tauri::command]
-pub fn save_settings(st: State<'_, St>, s: Settings) -> Result<(), String> {
+pub fn save_settings(st: State<'_, St>, mut s: Settings) -> Result<(), String> {
+    for (acct, cats) in s.auto.iter_mut() {
+        cats.retain(|c| crate::review::approved(&st, acct, c) >= crate::review::UNLOCK);
+    }
+    s.auto.retain(|_, v| !v.is_empty());
     save(&st.dir, &s)?;
     *st.cfg.lock().unwrap() = s;
     Ok(())

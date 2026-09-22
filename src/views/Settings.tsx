@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Acct, CATS, classifyNow, ensureOllama, getSettings, hasClientSecret, listAccounts, Probe, saveSettings, setClientSecret, Settings as S, testOllama } from "../api";
+import { Acct, Approved, approvalCounts, CATS, classifyNow, ensureOllama, getSettings, hasClientSecret, listAccounts, Probe, saveSettings, setClientSecret, Settings as S, testOllama, UNLOCK } from "../api";
 import Accounts from "./Accounts";
 
 export default function Settings() {
@@ -10,11 +10,13 @@ export default function Settings() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [accts, setAccts] = useState<Acct[]>([]);
+  const [appr, setAppr] = useState<Approved[]>([]);
 
   useEffect(() => {
     getSettings().then(setS);
     hasClientSecret().then(setHasSecret);
     listAccounts().then(setAccts).catch(() => {});
+    approvalCounts().then(setAppr).catch(() => {});
   }, []);
 
   if (!s) return null;
@@ -52,6 +54,12 @@ export default function Settings() {
   };
 
   const local = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(s.ollama_url);
+  const approved = (a: string, c: string) => appr.find((x) => x.account === a && x.category === c)?.n ?? 0;
+  const toggleAuto = (a: string, c: string, on: boolean) => {
+    const cur = s.auto[a] ?? [];
+    const next = on ? [...new Set([...cur, c])] : cur.filter((x) => x !== c);
+    set({ auto: { ...s.auto, [a]: next } });
+  };
 
   return (
     <div className="page">
@@ -121,18 +129,30 @@ export default function Settings() {
 
       <section>
         <h2>Auto mode</h2>
-        <p className="hint">Per account, per category. Unlocks after 20 approved proposals in that category.</p>
+        <p className="hint">
+          When on, Lumafly applies that category's default action without asking and notifies you. Each toggle unlocks after {UNLOCK} approved
+          proposals for that account and category. Spam still goes to Spam, never to Trash, and nothing is ever deleted.
+        </p>
         {accts.length === 0 && <p className="hint">No accounts yet.</p>}
         {accts.map((a) => (
           <div key={a.email} className="card">
             <div>{a.email}</div>
             <div className="chips">
-              {CATS.map((c) => (
-                <label key={c} className="row">
-                  <input type="checkbox" checked={s.auto[a.email]?.includes(c) ?? false} disabled />
-                  {c}
-                </label>
-              ))}
+              {CATS.map((c) => {
+                const n = approved(a.email, c);
+                const ok = n >= UNLOCK;
+                return (
+                  <label key={c} className="row" title={ok ? "Unlocked" : `${n}/${UNLOCK} approved`}>
+                    <input
+                      type="checkbox"
+                      checked={s.auto[a.email]?.includes(c) ?? false}
+                      disabled={!ok}
+                      onChange={(e) => toggleAuto(a.email, c, e.target.checked)}
+                    />
+                    {c} <span className="hint">{ok ? "" : `${n}/${UNLOCK}`}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
         ))}

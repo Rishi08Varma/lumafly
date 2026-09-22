@@ -2,8 +2,10 @@ mod accounts;
 mod actions;
 mod classify;
 mod db;
+mod digest;
 mod gmail;
 mod messages;
+mod notify;
 mod oauth;
 mod ollama;
 mod review;
@@ -99,6 +101,9 @@ pub fn run() {
             review::approve,
             review::reject,
             unsub::unsubscribe,
+            digest::make_digest,
+            digest::last_digest,
+            review::approval_counts,
         ])
         .build(tauri::generate_context!())
         .expect("tauri build")

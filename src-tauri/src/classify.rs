@@ -63,7 +63,7 @@ fn date_str(t: i64) -> String {
     format!("{y}-{m:02}-{dd:02}")
 }
 
-pub async fn classify_one(app: &AppHandle, id: &str) -> Result<(), String> {
+pub async fn classify_one(app: &AppHandle, id: &str) -> Result<Option<String>, String> {
     let st = app.state::<St>();
     let (url, model) = {
         let c = st.cfg.lock().unwrap();
@@ -93,12 +93,25 @@ pub async fn classify_one(app: &AppHandle, id: &str) -> Result<(), String> {
             params![o.category, o.confidence, o.reason, o.summary, id],
         )
         .map_err(err)?;
-    crate::review::propose(app, id, &m.account, &o.category);
     let _ = app.emit(
         "classified",
         json!({"id": id, "account": m.account, "category": o.category, "confidence": o.confidence, "reason": o.reason, "summary": o.summary}),
     );
-    Ok(())
+    if o.category == "important" && m.date > crate::now() - 86400 && m.state == "inbox" {
+        crate::notify::notify(app, &format!("Important: {}", m.subject), &o.summary);
+    }
+    Ok(crate::review::propose(app, id, &m.account, &o.category).await)
+}
+
+pub fn auto_summary(auto: &[String]) -> String {
+    let mut counts: Vec<(String, usize)> = vec![];
+    for a in auto {
+        match counts.iter_mut().find(|(k, _)| k == a) {
+            Some(c) => c.1 += 1,
+            None => counts.push((a.clone(), 1)),
+        }
+    }
+    counts.iter().map(|(k, n)| format!("{n}× {k}")).collect::<Vec<_>>().join(", ")
 }
 
 pub fn pending(st: &St) -> i64 {
@@ -123,6 +136,7 @@ pub fn kick(app: &AppHandle) {
         let _ = ollama::ensure(&h).await;
         let mut skip: HashSet<String> = HashSet::new();
         let mut fails = 0;
+        let mut auto: Vec<String> = vec![];
         loop {
             let st = h.state::<St>();
             let ids: Vec<String> = {
@@ -135,7 +149,10 @@ pub fn kick(app: &AppHandle) {
             };
             let Some(id) = ids.into_iter().find(|i| !skip.contains(i)) else { break };
             match classify_one(&h, &id).await {
-                Ok(()) => fails = 0,
+                Ok(a) => {
+                    fails = 0;
+                    auto.extend(a);
+                }
                 Err(e) => {
                     skip.insert(id);
                     fails += 1;
@@ -147,7 +164,10 @@ pub fn kick(app: &AppHandle) {
             }
             let _ = h.emit("classify_progress", pending(&st));
         }
-        crate::review::backfill(&h);
+        auto.extend(crate::review::backfill(&h).await);
+        if !auto.is_empty() {
+            crate::notify::notify(&h, &format!("Lumafly handled {} emails", auto.len()), &auto_summary(&auto));
+        }
         *h.state::<St>().classifying.lock().unwrap() = false;
     });
 }
@@ -164,7 +184,7 @@ pub fn classify_pending(st: State<'_, St>) -> i64 {
 
 #[tauri::command]
 pub async fn reclassify(app: AppHandle, id: String) -> Result<(), String> {
-    classify_one(&app, &id).await
+    classify_one(&app, &id).await.map(|_| ())
 }
 
 #[tauri::command]
