@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Acct, Approved, approvalCounts, CATS, classifyNow, ensureOllama, getSettings, hasClientSecret, listAccounts, Probe, saveSettings, setClientSecret, Settings as S, testOllama, UNLOCK } from "../api";
 import Accounts from "./Accounts";
+import Rules from "./Rules";
 
 export default function Settings() {
   const [s, setS] = useState<S | null>(null);
@@ -126,6 +127,8 @@ export default function Settings() {
           Native notifications
         </label>
       </section>
+
+      <Rules />
 
       <section>
         <h2>Auto mode</h2>

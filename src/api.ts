@@ -132,3 +132,9 @@ export const makeDigest = (hours: number) => invoke<Digest>("make_digest", { hou
 export const lastDigest = () => invoke<Digest | null>("last_digest");
 export const approvalCounts = () => invoke<Approved[]>("approval_counts");
 export const UNLOCK = 20;
+
+export type Rule = { id: number; sender: string; action: "trash" | "archive" | "spam"; except: string; auto: boolean; note: string };
+export const listRules = () => invoke<Rule[]>("list_rules");
+export const saveRule = (r: Rule) => invoke<number>("save_rule", { r });
+export const deleteRule = (id: number) => invoke<void>("delete_rule", { id });
+export const applyRules = () => invoke<number>("apply_rules");

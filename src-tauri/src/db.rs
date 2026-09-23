@@ -62,6 +62,14 @@ pub fn open(p: &Path) -> rusqlite::Result<Connection> {
            hours INTEGER,
            json TEXT
          );
+         CREATE TABLE IF NOT EXISTS rules(
+           id INTEGER PRIMARY KEY,
+           sender TEXT NOT NULL,
+           action TEXT NOT NULL,
+           unless TEXT,
+           auto INTEGER DEFAULT 0,
+           note TEXT
+         );
          CREATE TABLE IF NOT EXISTS approvals(
            account TEXT,
            category TEXT,

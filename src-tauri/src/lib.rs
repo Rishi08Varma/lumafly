@@ -9,6 +9,7 @@ mod notify;
 mod oauth;
 mod ollama;
 mod review;
+mod rules;
 mod settings;
 mod sync;
 mod text;
@@ -104,6 +105,10 @@ pub fn run() {
             digest::make_digest,
             digest::last_digest,
             review::approval_counts,
+            rules::list_rules,
+            rules::save_rule,
+            rules::delete_rule,
+            rules::apply_rules,
         ])
         .build(tauri::generate_context!())
         .expect("tauri build")

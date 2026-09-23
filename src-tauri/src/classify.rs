@@ -70,6 +70,24 @@ pub async fn classify_one(app: &AppHandle, id: &str) -> Result<Option<String>, S
         (c.ollama_url.clone(), c.model.clone())
     };
     let m = messages::get(&st.db.lock().unwrap(), id).map_err(err)?.ok_or("message not found")?;
+    let rule = crate::rules::matching(&st.db.lock().unwrap(), &m);
+    if let Some(r) = rule {
+        let (cat, reason) = ("notification", format!("Rule: sender matches {}", r.sender));
+        st.db
+            .lock()
+            .unwrap()
+            .execute(
+                "UPDATE messages SET category=?1, confidence=1.0, reason=?2, summary=?3 WHERE id=?4",
+                params![cat, reason, m.subject, id],
+            )
+            .map_err(err)?;
+        let _ = app.emit(
+            "classified",
+            json!({"id": id, "account": m.account, "category": cat, "confidence": 1.0, "reason": reason, "summary": m.subject}),
+        );
+        let m = messages::Msg { category: Some(cat.into()), ..m };
+        return Ok(crate::rules::propose(app, &m, &r).await);
+    }
     let user = format!(
         "Account: {}\nFrom: {}\nSubject: {}\nDate: {}\nHas List-Unsubscribe header: {}\n\n{}",
         m.account,
@@ -164,6 +182,7 @@ pub fn kick(app: &AppHandle) {
             }
             let _ = h.emit("classify_progress", pending(&st));
         }
+        auto.extend(crate::rules::apply_all(&h).await);
         auto.extend(crate::review::backfill(&h).await);
         if !auto.is_empty() {
             crate::notify::notify(&h, &format!("Lumafly handled {} emails", auto.len()), &auto_summary(&auto));

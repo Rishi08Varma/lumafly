@@ -88,6 +88,7 @@ export default function Review() {
                 <div className="grow min">
                   <div className="meta">
                     <span className="badge">{short(p.account)}</span>
+                    {p.text !== g.items[0].text && <span className="cat">{p.text}</span>}
                     <span className="from">{fromName(p.sender)}</span>
                     {p.confidence != null && <span className="hint">{Math.round(p.confidence * 100)}%</span>}
                     <span className="date">{fmtDate(p.created)}</span>
